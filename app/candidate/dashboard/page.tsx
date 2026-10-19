@@ -22,13 +22,15 @@ import {
     AlertCircle,
     Building2,
     Layers,
+    Loader2,
 } from "lucide-react";
 
 interface ApplicationItem {
     id: string;
+    jobId?: string;
     role: string;
     company: string;
-    status: "applied" | "screening" | "assessment" | "interview" | "shortlisted";
+    status: string;
     matchScore: number;
     appliedDate: string;
 }
@@ -36,46 +38,71 @@ interface ApplicationItem {
 export default function CandidateDashboard() {
     const [candidateName, setCandidateName] = useState("Developer");
     const [profileStrength, setProfileStrength] = useState(82);
+    const [recentApplications, setRecentApplications] = useState<ApplicationItem[]>([]);
+    const [loadingApps, setLoadingApps] = useState(true);
     const supabase = createClient();
 
     useEffect(() => {
-        async function loadUser() {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (user) {
-                setCandidateName(user.user_metadata?.full_name || "Developer");
+        async function loadUserAndApplications() {
+            setLoadingApps(true);
+            try {
+                const {
+                    data: { user },
+                } = await supabase.auth.getUser();
+
+                if (user) {
+                    setCandidateName(user.user_metadata?.full_name || "Developer");
+
+                    // Ensure candidate profile exists in profiles table
+                    await supabase.from("profiles").upsert({
+                        id: user.id,
+                        full_name: user.user_metadata?.full_name || "Developer",
+                        email: user.email || "",
+                        role: "candidate",
+                        experience_level: user.user_metadata?.experience_level || "mid-level",
+                    });
+
+                    // Fetch real applications
+                    const { data: appsData, error } = await supabase
+                        .from("applications")
+                        .select(`
+                            id,
+                            job_id,
+                            status,
+                            match_score,
+                            applied_at,
+                            jobs (id, title, company_name)
+                        `)
+                        .eq("candidate_id", user.id)
+                        .order("applied_at", { ascending: false });
+
+                    if (!error && appsData && appsData.length > 0) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const formatted: ApplicationItem[] = appsData.map((app: any) => ({
+                            id: app.id,
+                            jobId: app.jobs?.id || app.job_id,
+                            role: app.jobs?.title || "Full Stack Engineer",
+                            company: app.jobs?.company_name || "Partner Company",
+                            status: app.status || "applied",
+                            matchScore: Math.round(Number(app.match_score) || 90),
+                            appliedDate: app.applied_at
+                                ? new Date(app.applied_at).toLocaleDateString()
+                                : "Recently",
+                        }));
+                        setRecentApplications(formatted);
+                    } else {
+                        // Empty applications state
+                        setRecentApplications([]);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load candidate applications:", err);
+            } finally {
+                setLoadingApps(false);
             }
         }
-        loadUser();
+        loadUserAndApplications();
     }, [supabase]);
-
-    const recentApplications: ApplicationItem[] = [
-        {
-            id: "app-1",
-            role: "Senior Full Stack Engineer",
-            company: "Synthetix Labs",
-            status: "assessment",
-            matchScore: 92,
-            appliedDate: "Yesterday",
-        },
-        {
-            id: "app-2",
-            role: "Frontend AI Engineer",
-            company: "CognitiveFlow",
-            status: "interview",
-            matchScore: 88,
-            appliedDate: "3 days ago",
-        },
-        {
-            id: "app-3",
-            role: "TypeScript Systems Engineer",
-            company: "NextGen Cloud",
-            status: "screening",
-            matchScore: 79,
-            appliedDate: "May 12",
-        },
-    ];
 
     const recommendedJobs = [
         {
@@ -274,44 +301,73 @@ export default function CandidateDashboard() {
                         </div>
 
                         <div className="space-y-3">
-                            {recentApplications.map((app) => (
-                                <div
-                                    key={app.id}
-                                    className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                                >
+                            {loadingApps ? (
+                                <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-slate-800 flex items-center justify-center gap-2 text-slate-400 text-xs font-mono">
+                                    <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                                    <span>Syncing application status...</span>
+                                </div>
+                            ) : recentApplications.length === 0 ? (
+                                <div className="p-8 text-center rounded-2xl bg-slate-900/30 border border-slate-800/80 space-y-3">
+                                    <Briefcase className="w-8 h-8 text-slate-600 mx-auto" />
                                     <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-white text-sm">{app.role}</h3>
-                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
-                                                {app.matchScore}% Match
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-slate-400 flex items-center gap-2">
-                                            <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                                            <span>{app.company}</span>
-                                            <span>•</span>
-                                            <span>Applied {app.appliedDate}</span>
+                                        <h3 className="text-sm font-semibold text-white">No active applications yet</h3>
+                                        <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                                            Explore verified developer openings and apply with your AI-verified profile.
                                         </p>
                                     </div>
-
-                                    {/* Stage Stepper Badge */}
-                                    <div className="flex items-center gap-2">
-                                        <span
-                                            className={`text-xs px-3 py-1 rounded-full font-mono font-medium capitalize border ${app.status === "assessment"
-                                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                                    : app.status === "interview"
-                                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                                        : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                                }`}
-                                        >
-                                            Stage: {app.status}
-                                        </span>
-                                        <button className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white transition-colors">
-                                            View Details
-                                        </button>
-                                    </div>
+                                    <Link
+                                        href="/jobs"
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs transition-all shadow-md shadow-cyan-500/20"
+                                    >
+                                        <span>Browse Open Roles</span>
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                    </Link>
                                 </div>
-                            ))}
+                            ) : (
+                                recentApplications.map((app) => (
+                                    <div
+                                        key={app.id}
+                                        className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                                    >
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold text-white text-sm">{app.role}</h3>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
+                                                    {app.matchScore}% Match
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-400 flex items-center gap-2">
+                                                <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                                                <span>{app.company}</span>
+                                                <span>•</span>
+                                                <span>Applied {app.appliedDate}</span>
+                                            </p>
+                                        </div>
+
+                                        {/* Stage Stepper Badge & Action */}
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={`text-xs px-3 py-1 rounded-full font-mono font-medium capitalize border ${app.status === "assessment"
+                                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                                        : app.status === "interview"
+                                                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                                            : app.status === "shortlisted"
+                                                                ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                                                                : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                                    }`}
+                                            >
+                                                Stage: {app.status}
+                                            </span>
+                                            <Link
+                                                href={`/jobs/${app.jobId || app.id}`}
+                                                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white transition-colors"
+                                            >
+                                                View Details
+                                            </Link>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 

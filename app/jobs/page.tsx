@@ -257,12 +257,13 @@ export default function JobsPage() {
                                 </div>
 
                                 <Link
-                                    href={`/signup?role=candidate&redirect=/jobs/${job.id}`}
+                                    href={`/jobs/${job.id}`}
                                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-cyan-500 text-white hover:text-slate-950 text-xs font-semibold transition-all group-hover:shadow-md group-hover:shadow-cyan-500/10"
                                 >
                                     <span>Apply with AI Profile</span>
                                     <ArrowRight className="w-3.5 h-3.5" />
                                 </Link>
+
                             </div>
                         </div>
                     ))}
