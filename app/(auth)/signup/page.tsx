@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,12 +12,11 @@ import {
     Lock,
     ArrowRight,
     Briefcase,
-    Sparkles,
     AlertCircle,
     Loader2,
 } from "lucide-react";
 
-export default function SignupPage() {
+function SignupForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const initialRole = searchParams.get("role") === "recruiter" ? "recruiter" : "candidate";
@@ -60,7 +59,6 @@ export default function SignupPage() {
                 return;
             }
 
-            // Route to respective dashboard or profile setup
             if (role === "candidate") {
                 router.push("/candidate/dashboard");
             } else {
@@ -253,3 +251,18 @@ export default function SignupPage() {
         </div>
     );
 }
+
+export default function SignupPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen bg-[#07090e] flex items-center justify-center text-slate-400 text-sm">
+                    Loading sign up...
+                </div>
+            }
+        >
+            <SignupForm />
+        </Suspense>
+    );
+}
+
