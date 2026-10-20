@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
     Code2,
@@ -12,16 +13,10 @@ import {
     Sparkles,
     ArrowRight,
     CheckCircle2,
-    Clock,
     Briefcase,
-    TrendingUp,
-    ExternalLink,
     ChevronRight,
     LogOut,
-    User,
-    AlertCircle,
     Building2,
-    Layers,
     Loader2,
 } from "lucide-react";
 
@@ -36,11 +31,12 @@ interface ApplicationItem {
 }
 
 export default function CandidateDashboard() {
+    const router = useRouter();
     const [candidateName, setCandidateName] = useState("Developer");
-    const [profileStrength, setProfileStrength] = useState(82);
+    const [profileStrength] = useState(82);
     const [recentApplications, setRecentApplications] = useState<ApplicationItem[]>([]);
     const [loadingApps, setLoadingApps] = useState(true);
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     useEffect(() => {
         async function loadUserAndApplications() {
@@ -76,9 +72,17 @@ export default function CandidateDashboard() {
                         .eq("candidate_id", user.id)
                         .order("applied_at", { ascending: false });
 
+                    interface CandidateAppRecord {
+                        id: string;
+                        job_id?: string;
+                        status: string;
+                        match_score: number | null;
+                        applied_at?: string;
+                        jobs?: { id?: string; title?: string; company_name?: string } | null;
+                    }
+
                     if (!error && appsData && appsData.length > 0) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const formatted: ApplicationItem[] = appsData.map((app: any) => ({
+                        const formatted: ApplicationItem[] = (appsData as unknown as CandidateAppRecord[]).map((app) => ({
                             id: app.id,
                             jobId: app.jobs?.id || app.job_id,
                             role: app.jobs?.title || "Full Stack Engineer",
@@ -101,6 +105,7 @@ export default function CandidateDashboard() {
                 setLoadingApps(false);
             }
         }
+
         loadUserAndApplications();
     }, [supabase]);
 
@@ -163,20 +168,27 @@ export default function CandidateDashboard() {
                         <Link href="/candidate/github" className="hover:text-cyan-400 transition-colors">
                             GitHub Audit
                         </Link>
+                        <Link href="/candidate/profile" className="hover:text-cyan-400 transition-colors">
+                            Profile & Settings
+                        </Link>
                         <Link href="/jobs" className="hover:text-cyan-400 transition-colors">
                             Browse Jobs
                         </Link>
                     </nav>
 
                     <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center gap-2 text-xs font-mono bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300">
+                        <Link
+                            href="/candidate/profile"
+                            className="hidden sm:flex items-center gap-2 text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg text-slate-300 transition-colors"
+                            title="Manage availability in Profile Settings"
+                        >
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                             <span>Available for Hire</span>
-                        </div>
+                        </Link>
                         <button
                             onClick={async () => {
                                 await supabase.auth.signOut();
-                                window.location.href = "/";
+                                router.push("/");
                             }}
                             className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
                             title="Sign Out"

@@ -3,19 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-    Code2,
     GitBranch,
     Star,
     GitFork,
     Sparkles,
-    ArrowRight,
-    ShieldCheck,
     CheckCircle2,
     AlertCircle,
     Loader2,
     ExternalLink,
     ChevronLeft,
-    Terminal,
     FolderGit2,
     Award,
 } from "lucide-react";

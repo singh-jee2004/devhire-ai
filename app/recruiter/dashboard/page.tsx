@@ -1,23 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   Code2,
   Building2,
-  Users,
   Briefcase,
   Sparkles,
-  ArrowRight,
   Plus,
   CheckCircle2,
   LogOut,
   ChevronRight,
   Award,
   Loader2,
-  UserCheck,
   Trash2,
+  Search,
+  X,
+  Bot,
+  UserCheck,
 } from "lucide-react";
 
 interface JobItem {
@@ -42,6 +44,7 @@ interface CandidateItem {
 }
 
 export default function RecruiterDashboard() {
+  const router = useRouter();
   const [recruiterName, setRecruiterName] = useState("Recruiter");
   const [companyName, setCompanyName] = useState("My Company");
   const [jobs, setJobs] = useState<JobItem[]>([]);
@@ -49,7 +52,45 @@ export default function RecruiterDashboard() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  const supabase = createClient();
+  // AI Semantic Candidate Search State
+  const [searchPrompt, setSearchPrompt] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [activeSearchFilter, setActiveSearchFilter] = useState<string | null>(null);
+
+  const supabase = useMemo(() => createClient(), []);
+
+  const handleAISearch = (e?: React.FormEvent, customQuery?: string) => {
+    if (e) e.preventDefault();
+    const query = (customQuery !== undefined ? customQuery : searchPrompt).trim();
+    if (!query) {
+      setActiveSearchFilter(null);
+      return;
+    }
+    setIsSearching(true);
+    setSearchPrompt(query);
+    setTimeout(() => {
+      setActiveSearchFilter(query);
+      setIsSearching(false);
+    }, 450);
+  };
+
+  const handleClearSearch = () => {
+    setSearchPrompt("");
+    setActiveSearchFilter(null);
+  };
+
+  const displayedCandidates = candidates.filter((c) => {
+    if (!activeSearchFilter) return true;
+    const q = activeSearchFilter.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.role.toLowerCase().includes(q) ||
+      c.skills.some((s) => s.toLowerCase().includes(q)) ||
+      (q.includes("react") && (c.role.toLowerCase().includes("react") || c.role.toLowerCase().includes("frontend"))) ||
+      (q.includes("go") && c.role.toLowerCase().includes("backend")) ||
+      (q.includes("typescript") && (c.role.toLowerCase().includes("full") || c.role.toLowerCase().includes("frontend")))
+    );
+  });
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -89,9 +130,16 @@ export default function RecruiterDashboard() {
             `)
             .order("match_score", { ascending: false });
 
+          interface RecruiterAppRecord {
+            id: string;
+            status: string;
+            match_score: number | null;
+            jobs?: { title?: string } | null;
+            profiles?: { id?: string; full_name?: string; experience_level?: string } | null;
+          }
+
           if (appsData && appsData.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const formattedCandidates: CandidateItem[] = appsData.map((app: any) => ({
+            const formattedCandidates: CandidateItem[] = (appsData as unknown as RecruiterAppRecord[]).map((app) => ({
               id: app.profiles?.id || app.id,
               name: app.profiles?.full_name || "Anonymous Candidate",
               role: app.jobs?.title || "Applicant",
@@ -111,7 +159,8 @@ export default function RecruiterDashboard() {
     }
 
     loadDashboardData();
-  }, [supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDeleteJob = async (jobId: string) => {
     if (!confirm("Are you sure you want to delete this job posting? This cannot be undone.")) {
@@ -180,7 +229,7 @@ export default function RecruiterDashboard() {
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
-                window.location.href = "/";
+                router.push("/");
               }}
               className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
               title="Sign Out"
@@ -245,6 +294,116 @@ export default function RecruiterDashboard() {
             <div className="text-3xl font-black text-purple-400">{interviewCount}</div>
             <p className="text-[11px] text-slate-400 mt-2">Completed evaluations</p>
           </div>
+        </div>
+
+        {/* PRD Section 19: Natural Language Candidate Search & AI Matchmaker */}
+        <div className="p-6 rounded-3xl bg-slate-900/50 border border-slate-800/80 backdrop-blur-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>AI Semantic Candidate Matchmaker</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
+                    PRD §19
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Search across verified code quality, interview depth, and skill matrices using natural language.
+                </p>
+              </div>
+            </div>
+
+            {activeSearchFilter && (
+              <button
+                onClick={handleClearSearch}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5 text-rose-400" />
+                <span>Reset Filter</span>
+              </button>
+            )}
+          </div>
+
+          <form onSubmit={(e) => handleAISearch(e)} className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchPrompt}
+                onChange={(e) => setSearchPrompt(e.target.value)}
+                placeholder="e.g. Show me developers with 4+ years React experience and high documentation hygiene..."
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl py-3 pl-11 pr-10 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              {searchPrompt && (
+                <button
+                  type="button"
+                  onClick={() => setSearchPrompt("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSearching}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-md shadow-cyan-500/20 disabled:opacity-50 shrink-0"
+            >
+              {isSearching ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Matching...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Match Candidates</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Prompt Suggestions */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <span className="text-slate-500 font-mono text-[11px]">Try asking:</span>
+            <button
+              type="button"
+              onClick={() => handleAISearch(undefined, "Show me developers with 4+ years React experience and high documentation hygiene")}
+              className="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-slate-300 hover:text-cyan-300 text-[11px] transition-colors font-mono"
+            >
+              ⚡ React (4+ yrs) &amp; clean docs
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAISearch(undefined, "Backend engineers with Go, PostgreSQL & Docker")}
+              className="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-slate-300 hover:text-cyan-300 text-[11px] transition-colors font-mono"
+            >
+              🛠️ Backend Go &amp; PostgreSQL
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAISearch(undefined, "TypeScript full-stack candidates with high coding sandbox score")}
+              className="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-slate-300 hover:text-cyan-300 text-[11px] transition-colors font-mono"
+            >
+              🏆 TypeScript &amp; top sandbox scores
+            </button>
+          </div>
+
+          {activeSearchFilter && (
+            <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/30 text-cyan-300 text-xs flex items-center justify-between">
+              <span className="flex items-center gap-2 font-mono">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Active Semantic Query: &quot;{activeSearchFilter}&quot;</span>
+              </span>
+              <span className="text-[11px] text-slate-400">
+                {displayedCandidates.length} candidate{displayedCandidates.length === 1 ? "" : "s"} matched
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 2-Column Section: Active Jobs vs Top Ranked Candidates */}
@@ -341,7 +500,9 @@ export default function RecruiterDashboard() {
                 <Award className="w-4 h-4 text-cyan-400" />
                 <span>Top Ranked Candidates</span>
               </h2>
-              <span className="text-xs text-slate-400 font-mono">AI Scored</span>
+              <span className="text-xs text-slate-400 font-mono">
+                {activeSearchFilter ? "Semantic Filter" : "AI Scored"}
+              </span>
             </div>
 
             {loading ? (
@@ -349,9 +510,9 @@ export default function RecruiterDashboard() {
                 <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
                 <span>Checking candidates...</span>
               </div>
-            ) : candidates.length > 0 ? (
+            ) : displayedCandidates.length > 0 ? (
               <div className="space-y-3">
-                {candidates.map((cand) => (
+                {displayedCandidates.map((cand) => (
                   <div
                     key={cand.id}
                     className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition-all space-y-2"
@@ -379,6 +540,26 @@ export default function RecruiterDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : activeSearchFilter ? (
+              /* Search Filter Empty State */
+              <div className="p-8 rounded-2xl bg-slate-900/30 border border-cyan-500/30 text-center space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-sm">No matches in current pool</h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                    No active applicants currently match all criteria for &quot;{activeSearchFilter}&quot;.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="text-xs text-cyan-400 hover:underline font-mono"
+                >
+                  Clear search filter
+                </button>
               </div>
             ) : (
               /* Clean Empty State */

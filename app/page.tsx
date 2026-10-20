@@ -6,14 +6,9 @@ import {
   Bot,
   Sparkles,
   ArrowRight,
-  CheckCircle2,
   BrainCircuit,
-  ShieldCheck,
-  TrendingUp,
   Terminal,
-  Layers,
   ChevronRight,
-  ExternalLink,
 } from "lucide-react";
 
 export default function LandingPage() {

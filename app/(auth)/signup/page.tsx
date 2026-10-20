@@ -13,6 +13,7 @@ import {
     ArrowRight,
     Briefcase,
     AlertCircle,
+    CheckCircle2,
     Loader2,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ function SignupForm() {
 
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [successInfo, setSuccessInfo] = useState<string | null>(null);
 
     const supabase = createClient();
 
@@ -38,17 +40,18 @@ function SignupForm() {
         e.preventDefault();
         setLoading(true);
         setErrorMsg(null);
+        setSuccessInfo(null);
 
         try {
             const { data, error } = await supabase.auth.signUp({
-                email,
+                email: email.trim(),
                 password,
                 options: {
                     data: {
-                        full_name: fullName,
+                        full_name: fullName.trim(),
                         role,
-                        company_name: role === "recruiter" ? companyName : null,
-                        job_title: role === "recruiter" ? jobTitle : null,
+                        company_name: role === "recruiter" ? companyName.trim() : null,
+                        job_title: role === "recruiter" ? jobTitle.trim() : null,
                         experience_level: role === "candidate" ? experienceLevel : null,
                     },
                 },
@@ -56,6 +59,25 @@ function SignupForm() {
 
             if (error) {
                 setErrorMsg(error.message);
+                return;
+            }
+
+            // Ensure profile exists in public.profiles table
+            if (data.user) {
+                await supabase.from("profiles").upsert({
+                    id: data.user.id,
+                    full_name: fullName.trim(),
+                    email: email.trim(),
+                    role,
+                    company_name: role === "recruiter" ? companyName.trim() : null,
+                    job_title: role === "recruiter" ? jobTitle.trim() : null,
+                    experience_level: role === "candidate" ? experienceLevel : null,
+                });
+            }
+
+            // Check if email confirmation is required by Supabase
+            if (data.user && !data.session) {
+                setSuccessInfo("Account created successfully! If email confirmation is enabled, please verify your inbox before signing in.");
                 return;
             }
 
@@ -68,6 +90,21 @@ function SignupForm() {
             setErrorMsg("An unexpected error occurred. Please try again.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleOAuth = async (provider: "google" | "github") => {
+        setErrorMsg(null);
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider,
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback?role=${role}`,
+                },
+            });
+            if (error) setErrorMsg(error.message);
+        } catch (err: unknown) {
+            setErrorMsg(err instanceof Error ? err.message : "OAuth sign-in failed");
         }
     };
 
@@ -119,12 +156,61 @@ function SignupForm() {
                     </button>
                 </div>
 
+                {successInfo && (
+                    <div className="mb-5 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-start gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                            <p className="font-semibold">{successInfo}</p>
+                            <Link href="/login" className="text-cyan-400 underline font-medium block pt-1">
+                                Proceed to Sign In →
+                            </Link>
+                        </div>
+                    </div>
+                )}
+
                 {errorMsg && (
                     <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         <span>{errorMsg}</span>
                     </div>
                 )}
+
+                {/* Social Login Buttons */}
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                    <button
+                        type="button"
+                        onClick={() => handleOAuth("google")}
+                        className="py-2.5 px-3 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 hover:bg-slate-900 text-white text-xs font-medium flex items-center justify-center gap-2 transition-all"
+                    >
+                        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                            <path fill="#EA4335" d="M12 5c1.7 0 3 .7 3.7 1.4l2.8-2.8C16.8 2.1 14.6 1.3 12 1.3 7.5 1.3 3.7 3.9 1.9 7.7l3.4 2.6C6.1 7.4 8.8 5 12 5z" />
+                            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
+                            <path fill="#FBBC05" d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.4-2.6c-.2-.7-.4-1.5-.4-2.4z" />
+                            <path fill="#34A853" d="M12 23.7c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.2 0-5.9-2.2-6.9-5.2L1.7 16.4C3.5 20.3 7.5 23.7 12 23.7z" />
+                        </svg>
+                        <span>Google</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => handleOAuth("github")}
+                        className="py-2.5 px-3 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 hover:bg-slate-900 text-white text-xs font-medium flex items-center justify-center gap-2 transition-all"
+                    >
+                        <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                        </svg>
+                        <span>GitHub</span>
+                    </button>
+                </div>
+
+                <div className="relative mb-5">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-800" />
+                    </div>
+                    <div className="relative flex justify-center text-[10px] uppercase font-mono">
+                        <span className="bg-slate-900/90 px-2 text-slate-500">Or register with email</span>
+                    </div>
+                </div>
 
                 {/* Signup Form */}
                 <form onSubmit={handleSignup} className="space-y-4">

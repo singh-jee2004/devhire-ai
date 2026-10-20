@@ -2,20 +2,15 @@
 
 import { Suspense, useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-    Code2,
     Bot,
-    User,
     Send,
-    Sparkles,
     CheckCircle2,
     ChevronLeft,
     Loader2,
     TrendingUp,
     Award,
-    Layers,
-    HelpCircle,
 } from "lucide-react";
 
 interface Message {
@@ -36,8 +31,7 @@ interface EvaluationResult {
 
 function InterviewSessionContent() {
     const params = useParams();
-    const router = useRouter();
-    const interviewId = params.id as string;
+    const interviewId = params?.id as string;
 
     const [stage, setStage] = useState(1);
     const [messages, setMessages] = useState<Message[]>([
@@ -77,9 +71,9 @@ function InterviewSessionContent() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    interviewId,
                     answer: userText,
                     stage,
-                    conversationHistory: newHistory,
                 }),
             });
 

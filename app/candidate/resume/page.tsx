@@ -3,17 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-    Code2,
     UploadCloud,
     FileCheck2,
     CheckCircle2,
     Sparkles,
-    ArrowRight,
     TrendingUp,
-    Briefcase,
     AlertCircle,
     Loader2,
-    Layers,
     ChevronLeft,
 } from "lucide-react";
 

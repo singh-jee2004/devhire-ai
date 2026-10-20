@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -34,10 +34,47 @@ interface JobDetail {
     created_at?: string;
 }
 
+// Fallback sample data if opening sample jobs from public discovery
+const fallbackJobs: Record<string, JobDetail> = {
+    "job-1": {
+        id: "job-1",
+        title: "Senior Full Stack Engineer (Next.js & AI)",
+        company_name: "Synthetix Labs",
+        description: "Lead the architecture of our real-time developer intelligence engine. You will be building high-performance frontend interfaces with React 19 and Next.js, integrating vector databases, and orchestrating LLM tool calling pipelines.",
+        location: "San Francisco, CA (Hybrid)",
+        experience_level: "Senior (5+ yrs)",
+        employment_type: "Full-Time",
+        required_skills: ["React", "Next.js", "TypeScript", "Tailwind CSS", "Node.js"],
+        preferred_skills: ["PostgreSQL", "Supabase", "Vector Search", "Python"],
+    },
+    "job-2": {
+        id: "job-2",
+        title: "Backend Systems Architect",
+        company_name: "DataVessel",
+        description: "Design low-latency distributed APIs handling millions of candidate verification events daily. Requires mastery of event-driven architectures, SQL performance tuning, and scalable infrastructure.",
+        location: "Remote (Global)",
+        experience_level: "Senior (5+ yrs)",
+        employment_type: "Full-Time",
+        required_skills: ["Go", "Node.js", "PostgreSQL", "Redis", "Docker"],
+        preferred_skills: ["Kubernetes", "gRPC", "Kafka"],
+    },
+    "job-3": {
+        id: "job-3",
+        title: "Frontend AI Engineer",
+        company_name: "CognitiveFlow",
+        description: "Craft state-of-the-art interactive code assessment sandboxes, dynamic chat interview interfaces, and telemetry visualization dashboards with smooth 60fps micro-animations.",
+        location: "New York, NY (Remote)",
+        experience_level: "Mid-Level (2-5 yrs)",
+        employment_type: "Full-Time",
+        required_skills: ["React", "TypeScript", "Tailwind CSS", "WebSockets"],
+        preferred_skills: ["Next.js", "Monaco Editor", "Framer Motion"],
+    },
+};
+
 function JobDetailContent() {
     const params = useParams();
     const router = useRouter();
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
     const jobId = params?.id as string;
 
     const [job, setJob] = useState<JobDetail | null>(null);
@@ -47,43 +84,6 @@ function JobDetailContent() {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-    // Fallback sample data if opening sample jobs from public discovery
-    const fallbackJobs: Record<string, JobDetail> = {
-        "job-1": {
-            id: "job-1",
-            title: "Senior Full Stack Engineer (Next.js & AI)",
-            company_name: "Synthetix Labs",
-            description: "Lead the architecture of our real-time developer intelligence engine. You will be building high-performance frontend interfaces with React 19 and Next.js, integrating vector databases, and orchestrating LLM tool calling pipelines.",
-            location: "San Francisco, CA (Hybrid)",
-            experience_level: "Senior (5+ yrs)",
-            employment_type: "Full-Time",
-            required_skills: ["React", "Next.js", "TypeScript", "Tailwind CSS", "Node.js"],
-            preferred_skills: ["PostgreSQL", "Supabase", "Vector Search", "Python"],
-        },
-        "job-2": {
-            id: "job-2",
-            title: "Backend Systems Architect",
-            company_name: "DataVessel",
-            description: "Design low-latency distributed APIs handling millions of candidate verification events daily. Requires mastery of event-driven architectures, SQL performance tuning, and scalable infrastructure.",
-            location: "Remote (Global)",
-            experience_level: "Senior (5+ yrs)",
-            employment_type: "Full-Time",
-            required_skills: ["Go", "Node.js", "PostgreSQL", "Redis", "Docker"],
-            preferred_skills: ["Kubernetes", "gRPC", "Kafka"],
-        },
-        "job-3": {
-            id: "job-3",
-            title: "Frontend AI Engineer",
-            company_name: "CognitiveFlow",
-            description: "Craft state-of-the-art interactive code assessment sandboxes, dynamic chat interview interfaces, and telemetry visualization dashboards with smooth 60fps micro-animations.",
-            location: "New York, NY (Remote)",
-            experience_level: "Mid-Level (2-5 yrs)",
-            employment_type: "Full-Time",
-            required_skills: ["React", "TypeScript", "Tailwind CSS", "WebSockets"],
-            preferred_skills: ["Next.js", "Monaco Editor", "Framer Motion"],
-        },
-    };
 
     useEffect(() => {
         async function fetchJobAndStatus() {

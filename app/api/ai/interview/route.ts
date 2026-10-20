@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
     try {
-        const { answer, stage, conversationHistory } = await req.json();
+        const { answer, stage } = await req.json();
 
         if (!answer) {
             return NextResponse.json({ error: "No answer provided" }, { status: 400 });
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
         // Dynamic contextual responses per PRD Section 21.2
         let nextQuestion = "";
-        let nextStage = stage + 1;
+        const nextStage = stage + 1;
         let isFinished = false;
 
         if (stage === 1) {

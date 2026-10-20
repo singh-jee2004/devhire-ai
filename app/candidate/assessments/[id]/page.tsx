@@ -2,21 +2,17 @@
 
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-    Code2,
     Terminal,
     Play,
     CheckCircle2,
-    AlertCircle,
     Clock,
-    Sparkles,
     ChevronLeft,
     RotateCcw,
     Check,
     X,
     Loader2,
-    ShieldCheck,
     Send,
 } from "lucide-react";
 
@@ -77,8 +73,7 @@ def two_sum(nums, target):
 
 function AssessmentContent() {
     const params = useParams();
-    const router = useRouter();
-    const assessmentId = params.id as string;
+    const assessmentId = params?.id as string;
 
     const [language, setLanguage] = useState<"typescript" | "javascript" | "python">("typescript");
     const [code, setCode] = useState(STARTER_CODE.typescript);
@@ -185,6 +180,11 @@ function AssessmentContent() {
                     <div className="h-4 w-px bg-slate-800" />
                     <div className="flex items-center gap-2">
                         <h1 className="font-bold text-white text-sm">Two Sum Target Pair</h1>
+                        {assessmentId && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">
+                                {assessmentId}
+                            </span>
+                        )}
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
                             Medium
                         </span>

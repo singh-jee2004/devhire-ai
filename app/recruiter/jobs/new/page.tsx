@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import {
-  Code2,
   Sparkles,
-  ArrowRight,
-  Briefcase,
   AlertCircle,
   Loader2,
   ChevronLeft,
@@ -23,7 +21,7 @@ export default function NewJobPage() {
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -34,7 +32,7 @@ export default function NewJobPage() {
   const [requiredSkills, setRequiredSkills] = useState("React, TypeScript, Node.js");
   const [preferredSkills, setPreferredSkills] = useState("Next.js, PostgreSQL, Docker");
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function checkUser() {

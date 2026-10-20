@@ -1,32 +1,17 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-    Code2,
-    FileCheck2,
-    GitBranch,
-    Bot,
-    Terminal,
-    Sparkles,
-    ArrowRight,
     CheckCircle2,
     ChevronLeft,
-    Building2,
-    User,
     Mail,
     MapPin,
     Briefcase,
     AlertCircle,
-    Clock,
-    TrendingUp,
-    Star,
     Check,
-    X,
-    ExternalLink,
-    ShieldCheck,
 } from "lucide-react";
 
 interface CandidateDossier {
@@ -69,9 +54,8 @@ interface CandidateDossier {
 
 function CandidateDetailContent() {
     const params = useParams();
-    const router = useRouter();
     const candidateId = params.id as string;
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<"overview" | "resume" | "github" | "assessment" | "interview">("overview");
@@ -142,6 +126,48 @@ function CandidateDetailContent() {
             console.error("Error updating status:", err);
         }
     };
+
+    useEffect(() => {
+        async function fetchCandidate() {
+            setLoading(true);
+            try {
+                const { data: appData } = await supabase
+                    .from("applications")
+                    .select("id, status, match_score, profiles (*)")
+                    .eq("id", candidateId)
+                    .maybeSingle();
+
+                if (appData?.profiles) {
+                    const prof = appData.profiles as {
+                        full_name?: string;
+                        email?: string;
+                        experience_level?: string;
+                    };
+                    setDossier((prev) => ({
+                        ...prev,
+                        name: prof.full_name || prev.name,
+                        email: prof.email || prev.email,
+                        experienceLevel: prof.experience_level || prev.experienceLevel,
+                        status: (appData.status as CandidateDossier["status"]) || prev.status,
+                        matchScore: Math.round(Number(appData.match_score) || prev.matchScore),
+                    }));
+                }
+            } catch (err) {
+                console.error("Error loading candidate dossier:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchCandidate();
+    }, [candidateId, supabase]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#07090e] flex items-center justify-center text-slate-400">
+                <span className="text-sm font-mono text-cyan-400 animate-pulse">Loading candidate dossier...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#07090e] text-slate-100 selection:bg-cyan-500 selection:text-black">
